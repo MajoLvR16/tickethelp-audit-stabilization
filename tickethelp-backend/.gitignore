@@ -1,0 +1,15 @@
+.env
+.env.local
+db.sqlite3
+.venv/
+venv/
+env/
+**pycache**/
+*.pyc
+media/
+staticfiles/
+static/
+.DS_Store
+.cursor/
+.vscode/
+.idea/
