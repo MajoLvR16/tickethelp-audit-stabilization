@@ -1,0 +1,888 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import { DialogSlide } from "../../components/tickets/visualizar_tickets/Dialog"
+import { Input } from "../../components/tickets/visualizar_tickets/Input"
+import { TicketApprovalModal } from "../../components/tickets/visualizar_tickets/TicketApprovalModal"
+import { CircleAlert, Search, Wrench, FlaskConical, CheckCircle, Users, X, ClipboardCheck, Ban, AlertTriangle, Image as ImageIcon } from "lucide-react"
+import { ticketService } from "../../api/ticketService"
+import ModalNotificacion from "../../components/ModalNotificacion"
+import { AttachmentsGalleryModal } from "../../components/tickets/visualizar_tickets/AttachmentsGalleryModal"
+import { TicketFilters } from "../../components/tickets/visualizar_tickets/TicketFilters"
+
+const ESTADO_CONFIG = {
+  1: {
+    label: "Abierto",
+    color: "bg-red-100 text-red-800",
+    icon: CircleAlert,
+  },
+  2: {
+    label: "En diagnóstico",
+    color: "bg-orange-100 text-orange-800",
+    icon: Search,
+  },
+  3: {
+    label: "En reparación",
+    color: "bg-yellow-100 text-yellow-800",
+    icon: Wrench,
+  },
+  4: {
+    label: "En pruebas",
+    color: "bg-blue-100 text-blue-800",
+    icon: FlaskConical,
+  },
+  5: {
+    label: "Finalizado",
+    color: "bg-green-100 text-green-800",
+    icon: CheckCircle,
+  },
+  6: {
+    label: "Cancelado",
+    color: "bg-gray-100 text-gray-800",
+    icon: Ban,
+  },
+}
+
+export default function VisualizarTickets() {
+  const [tickets, setTickets] = useState([])
+  const [users, setUsers] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [selectedTicket, setSelectedTicket] = useState(null)
+  const [technicians, setTechnicians] = useState([])
+  const [searchTerm, setSearchTerm] = useState("")
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isProgressModalOpen, setIsProgressModalOpen] = useState(false)
+  const [progressTicket, setProgressTicket] = useState(null)
+  const [selectedTechnicianId, setSelectedTechnicianId] = useState(null)
+  const [isChangingTechnician, setIsChangingTechnician] = useState(false)
+  const [errorMessage, setErrorMessage] = useState("")
+  const [notifOpen, setNotifOpen] = useState(false)
+  const [notifTitle, setNotifTitle] = useState("")
+  const [notifMessage, setNotifMessage] = useState("")
+  const [pendingApprovals, setPendingApprovals] = useState([])
+
+  const [cancelModalOpen, setCancelModalOpen] = useState(false)
+  const [ticketToCancel, setTicketToCancel] = useState(null)
+  const [isCanceling, setIsCanceling] = useState(false)
+
+const [galleryOpen, setGalleryOpen] = useState(false)
+  const [galleryTicketId, setGalleryTicketId] = useState(null)
+
+  // Estado para filtros
+  const [filters, setFilters] = useState({
+    searchText: "",
+    estados: [],
+    tecnico: null,
+    fechaDesde: "",
+    fechaHasta: "",
+  })
+
+  useEffect(() => {
+    fetchTickets()
+    fetchUsers()
+    fetchPendingApprovals()
+
+    const interval = setInterval(() => {
+      fetchTickets()
+      fetchPendingApprovals()
+    }, 30000)
+
+    return () => clearInterval(interval)
+  }, [])
+
+  const fetchUsers = async () => {
+    try {
+      const data = await ticketService.getUsers()
+      setUsers(data)
+    } catch (error) {
+      console.error("Error fetching users:", error)
+    }
+  }
+
+  const fetchTickets = async () => {
+    try {
+      const data = await ticketService.getTickets()
+      setTickets(data)
+    } catch (error) {
+      console.error("Error fetching tickets:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchPendingApprovals = async () => {
+    try {
+      const data = await ticketService.getPendingApprovals()
+      setPendingApprovals(data)
+    } catch (error) {
+      console.error("Error fetching pending approvals:", error)
+      setPendingApprovals([])
+    }
+  }
+
+  const hasPendingApproval = (ticket) => {
+    return ticket.estado === 4
+  }
+
+  const fetchTechnicians = async () => {
+    try {
+      const data = await ticketService.getActiveTechnicians()
+
+      if (!Array.isArray(data)) {
+        console.error("Data is not an array:", data)
+        setTechnicians([])
+        return
+      }
+
+      const sortedData = data.sort((a, b) => (a.porcentaje_ocupacion || 0) - (b.porcentaje_ocupacion || 0))
+      setTechnicians(sortedData)
+    } catch (error) {
+      console.error("Error fetching technicians:", error)
+      setTechnicians([])
+    }
+  }
+
+  const getUserByDocument = (document) => {
+    return users.find((user) => String(user.document) === String(document))
+  }
+
+  const getTechnicianName = (technicianDocument) => {
+    const user = getUserByDocument(technicianDocument)
+    if (!user) return "No asignado"
+    return `${user.first_name} ${user.last_name}`.trim() || user.email
+  }
+
+  const getTechnicianAvatar = (technicianDocument) => {
+    const user = getUserByDocument(technicianDocument)
+    return user?.profile_picture || "/default_avatar.svg"
+  }
+
+  const handleOpenModal = (ticket) => {
+    setSelectedTicket(ticket)
+    setIsModalOpen(true)
+    setSelectedTechnicianId(null)
+    setSearchTerm("")
+    fetchTechnicians()
+  }
+
+  const handleOpenGallery = (ticket) => {
+    setGalleryTicketId(ticket.id)
+    setGalleryOpen(true)
+  }
+
+  const handleChangeTechnician = async () => {
+    if (!selectedTicket || !selectedTechnicianId || isChangingTechnician) return
+
+    setIsChangingTechnician(true)
+    setErrorMessage("")
+
+    try {
+      await ticketService.changeTechnician(selectedTicket.id, selectedTechnicianId)
+      await fetchTickets()
+
+      setIsModalOpen(false)
+
+      setNotifTitle("Técnico reasignado correctamente")
+      setNotifMessage(
+        `El ticket ${formatTicketNumber(selectedTicket)} fue asignado a ${getTechnicianName(selectedTechnicianId)}.`,
+      )
+      setNotifOpen(true)
+
+      setSelectedTicket(null)
+      setSelectedTechnicianId(null)
+    } catch (error) {
+      console.error("Error changing technician:", error)
+      if (error.message.includes("CORS")) {
+        setErrorMessage("Error de conexión: El servidor no permite la conexión desde este origen.")
+      } else if (error.message.includes("502") || error.message.includes("Bad Gateway")) {
+        setErrorMessage("El servidor no está disponible en este momento. Por favor, intenta más tarde.")
+      } else if (error.message.includes("Failed to fetch")) {
+        setErrorMessage("Error de red: No se pudo conectar con el servidor. Verifica tu conexión.")
+      } else {
+        setErrorMessage(error.message || "Error al cambiar el técnico. Por favor, intenta nuevamente.")
+      }
+    } finally {
+      setIsChangingTechnician(false)
+    }
+  }
+
+  const handleCancelClick = (ticket) => {
+    setTicketToCancel(ticket)
+    setCancelModalOpen(true)
+  }
+
+  const confirmCancel = async () => {
+    if (!ticketToCancel) return
+    setIsCanceling(true)
+    try {
+      await ticketService.cancelTicket(ticketToCancel.id)
+      setNotifTitle("Ticket cancelado")
+      setNotifMessage(`El ticket ${formatTicketNumber(ticketToCancel)} ha sido cancelado definitivamente.`)
+      setNotifOpen(true)
+      setCancelModalOpen(false)
+      await fetchTickets()
+    } catch (error) {
+      console.error(error)
+      setNotifTitle("Error")
+      setNotifMessage(error.message || "No se pudo cancelar el ticket.")
+      setNotifOpen(true)
+      setCancelModalOpen(false)
+    } finally {
+      setIsCanceling(false)
+      setTicketToCancel(null)
+    }
+  }
+
+  const handleOpenProgressModal = (ticket) => {
+    setProgressTicket(ticket)
+    setIsProgressModalOpen(true)
+  }
+
+  const handleApproveState = async () => {
+    if (!progressTicket) return
+
+    try {
+      await ticketService.approveStateChange(progressTicket.id)
+
+      setIsProgressModalOpen(false)
+      setNotifTitle("Estado aprobado")
+      setNotifMessage(`El ticket ${formatTicketNumber(progressTicket)} ha sido finalizado correctamente.`)
+      setNotifOpen(true)
+
+      await fetchTickets()
+      await fetchPendingApprovals()
+    } catch (error) {
+      console.error("Error aprobando estado:", error)
+      setNotifTitle("Error")
+      setNotifMessage(error.message || "No se pudo aprobar el cambio de estado.")
+      setNotifOpen(true)
+    }
+  }
+
+  const handleRejectState = async (rejectionReason) => {
+    if (!progressTicket) return
+
+    try {
+      await ticketService.rejectStateChange(progressTicket.id, rejectionReason)
+
+      setIsProgressModalOpen(false)
+      setNotifTitle("Estado rechazado")
+      setNotifMessage(`El ticket ${formatTicketNumber(progressTicket)} ha vuelto a la fase anterior.`)
+      setNotifOpen(true)
+
+      await fetchTickets()
+      await fetchPendingApprovals()
+    } catch (error) {
+      console.error("Error rechazando estado:", error)
+      setNotifTitle("Error")
+      setNotifMessage(error.message || "No se pudo rechazar el cambio de estado.")
+      setNotifOpen(true)
+    }
+  }
+
+  const formatTicketNumber = (ticket) => {
+    const year = new Date(ticket.creado_en).getFullYear()
+    const paddedId = String(ticket.id).padStart(3, "0")
+    return `#TK-${year}-${paddedId}`
+  }
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString)
+    return date.toLocaleDateString("es-ES", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    })
+  }
+
+  const getInitials = (name) => {
+    if (!name) return "?"
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2)
+  }
+
+  const filteredTechnicians = technicians.filter((tech) => {
+    const fullName = `${tech.first_name || ""} ${tech.last_name || ""}`.toLowerCase()
+    const email = (tech.email || "").toLowerCase()
+    const search = searchTerm.toLowerCase()
+    return fullName.includes(search) || email.includes(search)
+  })
+
+  const availableTechnicians = filteredTechnicians.filter(
+    (tech) => tech.is_active !== false && (tech.porcentaje_ocupacion || 0) < 100,
+  )
+
+  const unavailableTechnicians = filteredTechnicians.filter(
+    (tech) => tech.is_active !== false && (tech.porcentaje_ocupacion || 0) >= 100,
+  )
+
+  const inactiveTechnicians = filteredTechnicians.filter((tech) => tech.is_active === false)
+
+  const getWorkloadColor = (percentage) => {
+    if (percentage < 40) return "bg-green-500"
+    if (percentage < 70) return "bg-yellow-500"
+    return "bg-red-500"
+  }
+
+  const getWorkloadTextColor = (percentage) => {
+    if (percentage < 40) return "text-green-600"
+    if (percentage < 70) return "text-yellow-600"
+    return "text-red-600"
+  }
+
+// Convertir ESTADO_CONFIG a array para el componente de filtros
+  const estadosArray = Object.entries(ESTADO_CONFIG).map(([id, config]) => ({
+    id: parseInt(id),
+    ...config,
+  }))
+
+  // Función para obtener la lista de técnicos únicos de los tickets
+  const getUniqueTechnicians = () => {
+    const technicianDocuments = [...new Set(tickets.map((t) => t.tecnico).filter(Boolean))]
+    return technicianDocuments.map((doc) => {
+      const user = getUserByDocument(doc)
+      return {
+        document: doc,
+        first_name: user?.first_name || "",
+        last_name: user?.last_name || "",
+        email: user?.email || "",
+        profile_picture: user?.profile_picture || "/default_avatar.svg",
+      }
+    })
+  }
+
+  // Aplicar filtros a los tickets
+  const applyFilters = (ticketsToFilter) => {
+    return ticketsToFilter.filter((ticket) => {
+      // Filtro por búsqueda de texto
+      if (filters.searchText) {
+        const search = filters.searchText.toLowerCase()
+        const ticketNumber = formatTicketNumber(ticket).toLowerCase()
+        const titulo = (ticket.titulo || "").toLowerCase()
+        const equipo = (ticket.equipo || "").toLowerCase()
+        const descripcion = (ticket.descripcion || "").toLowerCase()
+
+        if (
+          !ticketNumber.includes(search) &&
+          !titulo.includes(search) &&
+          !equipo.includes(search) &&
+          !descripcion.includes(search)
+        ) {
+          return false
+        }
+      }
+
+      // Filtro por estados
+      if (filters.estados.length > 0 && !filters.estados.includes(ticket.estado)) {
+        return false
+      }
+
+      // Filtro por técnico
+      if (filters.tecnico && String(ticket.tecnico) !== String(filters.tecnico)) {
+        return false
+      }
+
+// Filtro por fecha desde
+      if (filters.fechaDesde) {
+        // Normalizar fecha del ticket a solo fecha (sin hora)
+        const ticketDate = new Date(ticket.creado_en)
+        const ticketDateOnly = new Date(ticketDate.getFullYear(), ticketDate.getMonth(), ticketDate.getDate())
+        
+        // Parsear la fecha del filtro (formato YYYY-MM-DD)
+        const [year, month, day] = filters.fechaDesde.split("-").map(Number)
+        const filterDate = new Date(year, month - 1, day)
+        
+        if (ticketDateOnly < filterDate) {
+          return false
+        }
+      }
+
+      // Filtro por fecha hasta
+      if (filters.fechaHasta) {
+        // Normalizar fecha del ticket a solo fecha (sin hora)
+        const ticketDate = new Date(ticket.creado_en)
+        const ticketDateOnly = new Date(ticketDate.getFullYear(), ticketDate.getMonth(), ticketDate.getDate())
+        
+        // Parsear la fecha del filtro (formato YYYY-MM-DD)
+        const [year, month, day] = filters.fechaHasta.split("-").map(Number)
+        const filterDate = new Date(year, month - 1, day)
+        
+        if (ticketDateOnly > filterDate) {
+          return false
+        }
+      }
+
+      return true
+    })
+  }
+
+  // Limpiar todos los filtros
+  const handleClearFilters = () => {
+    setFilters({
+      searchText: "",
+      estados: [],
+      tecnico: null,
+      fechaDesde: "",
+      fechaHasta: "",
+    })
+  }
+
+  // Aplicar filtros y ordenar tickets
+  const filteredTickets = applyFilters(tickets)
+
+  const sortedTickets = [...filteredTickets].sort((a, b) => {
+    const aPending = hasPendingApproval(a)
+    const bPending = hasPendingApproval(b)
+
+    if (aPending && !bPending) return -1
+    if (!aPending && bPending) return 1
+    return 0
+  })
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-gray-500">Cargando tickets...</div>
+      </div>
+    )
+  }
+
+  return (
+    <>
+      <style>{`
+        @keyframes gentle-bounce {
+          0%, 100% {
+            transform: translateY(0);
+          }
+          50% {
+            transform: translateY(-8px);
+          }
+        }
+      `}</style>
+
+      <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Visualizar Tickets</h1>
+          <div className="text-sm text-gray-500">
+            {filteredTickets.length === tickets.length
+              ? `Total: ${tickets.length} tickets`
+              : `Mostrando ${filteredTickets.length} de ${tickets.length} tickets`}
+          </div>
+        </div>
+
+        <TicketFilters
+          filters={filters}
+          onFiltersChange={setFilters}
+          technicians={getUniqueTechnicians()}
+          estados={estadosArray}
+          onClearFilters={handleClearFilters}
+        />
+
+        <div className="space-y-4 sm:space-y-6 max-w-6xl">
+          {sortedTickets.length === 0 ? (
+            <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+              <div className="flex flex-col items-center gap-3">
+                <Search className="w-12 h-12 text-gray-300" />
+                <h3 className="text-lg font-medium text-gray-700">No se encontraron tickets</h3>
+                <p className="text-sm text-gray-500 max-w-md">
+                  No hay tickets que coincidan con los filtros seleccionados. Intenta ajustar los criterios de búsqueda.
+                </p>
+                <button
+                  onClick={handleClearFilters}
+                  className="mt-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  Limpiar filtros
+                </button>
+              </div>
+            </div>
+          ) : (
+            sortedTickets.map((ticket) => {
+            const estadoConfig = ESTADO_CONFIG[ticket.estado] || ESTADO_CONFIG[1]
+            const EstadoIcon = estadoConfig.icon
+            const isPending = hasPendingApproval(ticket)
+
+            return (
+              <div
+                key={ticket.id}
+                className={`rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 ${
+                  isPending ? "bg-[#FDFFEB]" : "bg-white"
+                }`}
+                style={
+                  isPending
+                    ? {
+                        animation: "gentle-bounce 1.1s ease-in-out infinite",
+                      }
+                    : {}
+                }
+              >
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-4 sm:mb-6">
+                  <div className="flex-1">
+                    <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-2">
+                      {formatTicketNumber(ticket)}
+                    </h2>
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+                      <span
+                        className={`inline-flex items-center px-2.5 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${estadoConfig.color}`}
+                      >
+                        <EstadoIcon className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                        {estadoConfig.label}
+                      </span>
+                      <span className="text-gray-600 text-xs sm:text-sm">Creado: {formatDate(ticket.creado_en)}</span>
+                      {isPending && (
+                        <span className="inline-flex items-center px-2.5 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium bg-amber-100 text-amber-800 border border-amber-300">
+                          ⚠️ Pendiente de revisión
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    {ticket.estado < 3 && (
+                      <button
+                        onClick={() => handleCancelClick(ticket)}
+                        className="flex items-center justify-center gap-2 px-4 py-2.5 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg text-sm font-medium transition-colors"
+                      >
+                        <Ban className="w-4 h-4" />
+                        Cancelar
+                      </button>
+                    )}
+                    {isPending && (
+                      <button
+                        onClick={() => handleOpenProgressModal(ticket)}
+                        className="flex items-center justify-center gap-2 px-4 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors"
+                      >
+                        <ClipboardCheck className="w-4 h-4" />
+                        Aprobar/Rechazar estado
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleOpenGallery(ticket)}
+                      className="flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg text-sm font-medium transition-colors"
+                    >
+                      <ImageIcon className="w-4 h-4" />
+                      Ver Adjuntos
+                    </button>
+                    <button
+                      onClick={() => handleOpenModal(ticket)}
+                      className="flex items-center justify-center gap-2 px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm font-medium transition-colors"
+                    >
+                      <Users className="w-4 h-4" />
+                      Gestionar técnico
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                  <div>
+                    <h3 className="font-semibold text-gray-800 mb-3 text-sm sm:text-base">Información del Ticket</h3>
+
+                    <div className="space-y-2 sm:space-y-3">
+                      <div>
+                        <span className="text-gray-600 text-xs sm:text-sm">Título:</span>
+                        <p className="font-medium text-gray-800 text-sm sm:text-base">{ticket.titulo}</p>
+                      </div>
+
+                      <div>
+                        <span className="text-gray-600 text-xs sm:text-sm">Descripción:</span>
+                        <p className="text-gray-800 text-sm sm:text-base">{ticket.descripcion}</p>
+                      </div>
+
+                      <div>
+                        <span className="text-gray-600 text-xs sm:text-sm">Equipo:</span>
+                        <p className="font-medium text-gray-800 text-sm sm:text-base">{ticket.equipo}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="font-semibold text-gray-800 mb-3 text-sm sm:text-base">Técnico Asignado</h3>
+
+                    <div
+                      className={`flex items-center space-x-3 p-3 rounded-lg ${
+                        isPending ? "bg-[#F9FAD5]" : "bg-gray-50"
+                      }`}
+                    >
+                      <img
+                        src={getTechnicianAvatar(ticket.tecnico) || "/placeholder.svg"}
+                        alt={getTechnicianName(ticket.tecnico)}
+                        className="w-10 h-10 rounded-full bg-gray-200 flex-shrink-0"
+                      />
+
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-gray-800 text-sm sm:text-base truncate">
+                          {getTechnicianName(ticket.tecnico)}
+                        </p>
+                        <p className="text-xs sm:text-sm text-gray-600">Técnico</p>
+                        <div className="flex items-center mt-1">
+                          <div className="w-2 h-2 bg-green-500 rounded-full mr-2 flex-shrink-0" />
+                          <span className="text-xs text-green-600">Disponible</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+)
+          })
+          )}
+        </div>
+
+        <DialogSlide open={isModalOpen} onOpenChange={setIsModalOpen}>
+          <div className="h-full flex flex-col">
+            <div className="p-4 sm:p-6 pb-3 sm:pb-4 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg sm:text-xl font-semibold text-gray-800">Reasignar técnico</h2>
+                <button
+                  onClick={() => setIsModalOpen(false)}
+                  className="text-gray-500 hover:text-gray-700 transition-colors p-1"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-3 sm:py-4">
+              <div className="space-y-4 sm:space-y-6">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Input
+                    type="text"
+                    placeholder="Buscar técnico por nombre o correo"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 w-full border-gray-300 focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm"
+                  />
+                </div>
+
+                {availableTechnicians.length > 0 && (
+                  <div>
+                    <h3 className="font-medium text-gray-800 mb-3 text-sm sm:text-base">Técnicos Disponibles</h3>
+                    <div className="space-y-2 sm:space-y-3">
+                      {availableTechnicians.map((tech) => {
+                        const workload = tech.porcentaje_ocupacion || 0
+                        const fullName = `${tech.first_name} ${tech.last_name}`.trim()
+                        const techUser = getUserByDocument(tech.document)
+                        const techAvatar = techUser?.profile_picture || "/default_avatar.svg"
+                        const isSelected = selectedTechnicianId === tech.document
+
+                        return (
+                          <button
+                            key={tech.document}
+                            onClick={() => setSelectedTechnicianId(tech.document)}
+                            className={`w-full p-3 sm:p-4 border rounded-lg transition-all ${
+                              isSelected
+                                ? "border-teal-500 bg-teal-50"
+                                : "border-gray-200 hover:border-teal-400 hover:bg-gray-50"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                                <img
+                                  src={techAvatar || "/placeholder.svg"}
+                                  alt={fullName}
+                                  className="w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover flex-shrink-0"
+                                />
+                                <div className="text-left min-w-0 flex-1">
+                                  <p className="font-medium text-gray-800 text-sm sm:text-base truncate">{fullName}</p>
+                                  <p className="text-xs sm:text-sm text-gray-600">Técnico</p>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+                                <div className="w-12 sm:w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                  <div
+                                    className={`h-full ${getWorkloadColor(workload)} transition-all`}
+                                    style={{ width: `${workload}%` }}
+                                  />
+                                </div>
+                                <span
+                                  className={`text-xs font-medium ${getWorkloadTextColor(workload)} w-8 sm:w-10 text-right`}
+                                >
+                                  {Math.round(workload)}%
+                                </span>
+                              </div>
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {unavailableTechnicians.length > 0 && (
+                  <div>
+                    <h3 className="font-medium text-gray-800 mb-3 text-sm sm:text-base">Técnicos No Disponibles</h3>
+                    <div className="space-y-2 sm:space-y-3">
+                      {unavailableTechnicians.map((tech) => {
+                        const fullName = `${tech.first_name} ${tech.last_name}`.trim()
+                        const techUser = getUserByDocument(tech.document)
+                        const techAvatar = techUser?.profile_picture || "/default_avatar.svg"
+                        const workload = tech.porcentaje_ocupacion || 0
+
+                        return (
+                          <div
+                            key={tech.document}
+                            className="p-3 sm:p-4 bg-gray-50 rounded-lg opacity-60 cursor-not-allowed"
+                            title="Técnico con sobreocupación (100%), no disponible para asignación"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                                <img
+                                  src={techAvatar || "/placeholder.svg"}
+                                  alt={fullName}
+                                  className="w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover grayscale flex-shrink-0"
+                                />
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-medium text-gray-500 text-sm sm:text-base truncate">{fullName}</p>
+                                  <p className="text-xs sm:text-sm text-gray-400">Técnico - Sobreocupado</p>
+                                </div>
+                              </div>
+                              <span className="text-xs font-medium text-red-600 flex-shrink-0">
+                                {Math.round(workload)}%
+                              </span>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {inactiveTechnicians.length > 0 && (
+                  <div>
+                    <h3 className="font-medium text-gray-800 mb-3 text-sm sm:text-base">Técnicos Inactivos</h3>
+                    <div className="space-y-2 sm:space-y-3">
+                      {inactiveTechnicians.map((tech) => {
+                        const fullName = `${tech.first_name} ${tech.last_name}`.trim()
+                        const techUser = getUserByDocument(tech.document)
+                        const techAvatar = techUser?.profile_picture || "/default_avatar.svg"
+
+                        return (
+                          <div
+                            key={tech.document}
+                            className="p-3 sm:p-4 bg-gray-100 rounded-lg opacity-50 cursor-not-allowed"
+                            title="Técnico inactivo, no disponible para asignación"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                                <img
+                                  src={techAvatar || "/placeholder.svg"}
+                                  alt={fullName}
+                                  className="w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover grayscale flex-shrink-0"
+                                />
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-medium text-gray-500 text-sm sm:text-base truncate">{fullName}</p>
+                                  <p className="text-xs sm:text-sm text-gray-400">Técnico - Inactivo</p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="p-4 sm:p-6 pt-3 sm:pt-4 border-t border-gray-200 bg-white">
+              {errorMessage && (
+                <div className="mb-3 sm:mb-4 p-2.5 sm:p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-xs sm:text-sm text-red-600">{errorMessage}</p>
+                </div>
+              )}
+
+              <div className="flex gap-2 sm:gap-3">
+                <button
+                  onClick={handleChangeTechnician}
+                  disabled={!selectedTechnicianId || isChangingTechnician}
+                  className="flex-1 bg-teal-600 text-white py-2.5 sm:py-3 rounded-lg text-sm font-medium disabled:bg-gray-300 disabled:cursor-not-allowed hover:bg-teal-700 transition-colors"
+                >
+                  {isChangingTechnician ? "Cambiando..." : "Confirmar"}
+                </button>
+                <button
+                  onClick={() => setIsModalOpen(false)}
+                  disabled={isChangingTechnician}
+                  className="flex-1 bg-gray-200 text-gray-700 py-2.5 sm:py-3 rounded-lg text-sm font-medium hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancelar
+                </button>
+              </div>
+              <p className="text-xs sm:text-sm text-gray-500 mt-2 text-center">
+                {selectedTechnicianId ? "Técnico seleccionado" : "Debes elegir un técnico"}
+              </p>
+            </div>
+          </div>
+        </DialogSlide>
+
+        <TicketApprovalModal
+          open={isProgressModalOpen}
+          onOpenChange={setIsProgressModalOpen}
+          ticket={progressTicket}
+          onApprove={handleApproveState}
+          onReject={handleRejectState}
+        />
+
+        {/* Cancel Confirmation Modal */}
+        {cancelModalOpen && ticketToCancel && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden min-h-[50px]">
+              <div className="p-6">
+                <div className="flex items-center justify-center w-12 h-12 mx-auto mb-4 bg-red-100 rounded-full">
+                  <AlertTriangle className="w-6 h-6 text-red-600" />
+                </div>
+                <h3 className="text-xl font-bold text-center text-gray-900 mb-2">
+                  ¿Cancelar Ticket?
+                </h3>
+                <p className="text-center text-gray-600 mb-6 text-sm sm:text-base">
+                  ¿Estás seguro que deseas cancelar el ticket <span className="font-semibold text-gray-800">{formatTicketNumber(ticketToCancel)}</span>? 
+                  Esta acción no se puede deshacer.
+                </p>
+                
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    onClick={() => setCancelModalOpen(false)}
+                    disabled={isCanceling}
+                    className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                  >
+                    No, mantener
+                  </button>
+                  <button
+                    onClick={confirmCancel}
+                    disabled={isCanceling}
+                    className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex justify-center items-center"
+                  >
+                    {isCanceling ? (
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                      "Sí, cancelar"
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <ModalNotificacion
+          open={notifOpen}
+          onClose={() => setNotifOpen(false)}
+          title={notifTitle}
+          message={notifMessage}
+          autoCloseMs={3500}
+          position="top-right"
+        />
+
+        <AttachmentsGalleryModal
+          isOpen={galleryOpen}
+          onClose={() => setGalleryOpen(false)}
+          ticketId={galleryTicketId}
+        />
+      </div>
+    </>
+  )
+}
