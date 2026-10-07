@@ -4,14 +4,16 @@ Endpoints auditados en tickethelp-backend/reports/urls.py, tickethelp-backend/
 reports/views.py, tickethelp-backend/tickets/urls.py, tickethelp-backend/
 tickets/views.py y tickethelp-backend/users/urls.py (solo lectura).
 
-Nota de auditoría (ver _audit_docs/GAP_ANALYSIS_INFORME.md):
-SEC-01 no ejerce sobre /api/reports/stats/general-stats/ (confirmado con
-permission_classes = [IsAdmin], correctamente protegido) sino sobre
-/api/reports/stats/aging-top/, /api/reports/stats/tta/total/ y
-/api/reports/stats/clientes-activos-mes/, vistas APIView de
-reports/views.py que NO declaran permission_classes y por lo tanto heredan
-únicamente el default global IsAuthenticated (tickethelp/settings.py:209-211),
-sin restricción de rol ADMIN.
+Nota de auditoría (ver _audit_docs/GAP_ANALYSIS_INFORME.md, GAP-04):
+/api/reports/stats/aging-top/, /api/reports/stats/tta/total/,
+/api/reports/stats/clientes-activos-mes/ y
+/api/reports/stats/resolutions-by-weekday/ eran vistas APIView de
+reports/views.py que NO declaraban permission_classes propio y por lo tanto
+heredaban únicamente el default global IsAuthenticated
+(tickethelp/settings.py:209-211), sin restricción de rol ADMIN. Remediado en
+CR-01 (permission_classes = [IsAdmin] agregado a las 4 vistas); estos tests
+ahora verifican la ausencia de regresión sobre esa corrección, no un
+hallazgo pendiente.
 """
 import pytest
 
@@ -21,6 +23,7 @@ RUTAS_ADMIN_SIN_RESTRICCION_DE_ROL = [
     "/api/reports/stats/aging-top/",
     "/api/reports/stats/tta/total/",
     "/api/reports/stats/clientes-activos-mes/",
+    "/api/reports/stats/resolutions-by-weekday/",
 ]
 
 
@@ -29,16 +32,20 @@ class TestSEC01RestriccionRutasAdministrativas:
     CLIENT y TECH."""
 
     @pytest.mark.parametrize("ruta", RUTAS_ADMIN_SIN_RESTRICCION_DE_ROL)
-    def test_no_conformidad_cliente_accede_a_stats_administrativas(self, client_client, ruta):
-        """No conformidad confirmada: el cliente autenticado obtiene 200 en
-        lugar de 403 porque la vista no declara permission_classes propio."""
+    def test_regresion_cliente_no_accede_a_stats_administrativas(self, client_client, ruta):
+        """Verifica ausencia de regresión de CR-01: el cliente autenticado
+        debe recibir 403, ya que las 4 vistas declaran
+        permission_classes = [IsAdmin]."""
         response = client_client.get(ruta)
-        assert response.status_code == 200
+        assert response.status_code == 403
 
     @pytest.mark.parametrize("ruta", RUTAS_ADMIN_SIN_RESTRICCION_DE_ROL)
-    def test_no_conformidad_tecnico_accede_a_stats_administrativas(self, tech_client, ruta):
+    def test_regresion_tecnico_no_accede_a_stats_administrativas(self, tech_client, ruta):
+        """Verifica ausencia de regresión de CR-01: el técnico autenticado
+        debe recibir 403, ya que las 4 vistas declaran
+        permission_classes = [IsAdmin]."""
         response = tech_client.get(ruta)
-        assert response.status_code == 200
+        assert response.status_code == 403
 
     def test_ruta_general_stats_si_esta_correctamente_protegida(self, client_client):
         """Control de referencia: GeneralStatsView SÍ declara
