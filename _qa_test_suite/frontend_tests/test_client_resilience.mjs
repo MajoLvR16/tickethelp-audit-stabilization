@@ -29,25 +29,27 @@ function readEnvVar(name) {
 }
 
 // ---------------------------------------------------------------------------
-// FE-RES-01: validación sintáctica estricta de VITE_BACKEND_URL
+// FE-RES-01: validación sintáctica estricta de VITE_API_URL
 // ---------------------------------------------------------------------------
-test("FE-RES-01: VITE_BACKEND_URL declarada en .env es una URL válida (new URL + '//')", () => {
-  const value = readEnvVar("VITE_BACKEND_URL");
-  assert.ok(value, "VITE_BACKEND_URL debe estar presente en tickethelp-frontend/.env");
+test("FE-RES-01: test_regresion_vite_api_url_presente_y_valida", () => {
+  // Verifica ausencia de regresión de CR-02: VITE_API_URL (no
+  // VITE_BACKEND_URL, retirada) debe estar presente en .env con esquema
+  // completo, ya que reemplazó a la variable huérfana original.
+  const value = readEnvVar("VITE_API_URL");
+  assert.ok(value, "VITE_API_URL debe estar presente en tickethelp-frontend/.env");
 
-  // No conformidad esperada y confirmada por auditoría: el valor real es
-  // "https:tickethelp-backend.onrender.com" (sin "//"), por lo que esta
-  // aserción documenta el defecto reproducible: new URL() debe fallar.
   assert.match(
     value,
     /^https?:\/\//,
-    `VITE_BACKEND_URL="${value}" carece del separador "//" tras el esquema (RF-CONFIG-02)`
+    `VITE_API_URL="${value}" carece del separador "//" tras el esquema (RF-CONFIG-02)`
   );
 });
 
-test("FE-RES-01b: el valor actual de VITE_BACKEND_URL es rechazado por new URL() (reproduce el defecto)", () => {
-  const value = readEnvVar("VITE_BACKEND_URL");
-  assert.throws(() => new URL(value), TypeError);
+test("FE-RES-01b: test_regresion_vite_api_url_construye_url_valida", () => {
+  // Verifica ausencia de regresión de CR-02: el valor real configurado ya
+  // no lanza TypeError al construir new URL(valor).
+  const value = readEnvVar("VITE_API_URL");
+  assert.doesNotThrow(() => new URL(value));
 });
 
 test("FE-RES-01c: el código fuente sólo consume VITE_API_URL, nunca VITE_BACKEND_URL (variable huérfana)", () => {
