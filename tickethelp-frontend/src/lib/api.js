@@ -1,4 +1,9 @@
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000"
+try {
+  new URL(BASE_URL)
+} catch {
+  throw new Error(`VITE_API_URL invalida: "${BASE_URL}". Debe ser una URL completa (ej. https://api.midominio.com).`)
+}
 
 const authHeaders = () => {
   const token = localStorage.getItem("access")
