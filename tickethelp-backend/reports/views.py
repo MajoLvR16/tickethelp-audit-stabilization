@@ -675,6 +675,7 @@ class TicketAgingTopView(APIView):
     - Desempate por id (menor id primero cuando hay empate)
     - Devuelve metadatos de estado, técnico y cliente según formato solicitado
     """
+    permission_classes = [IsAdmin]
     FINAL_STATE_ID = 5
 
     def get(self, request, *args, **kwargs):
@@ -748,6 +749,7 @@ class WeekdayResolutionCountView(APIView):
     - Fecha usada = COALESCE(finalizado_en?, actualizado_en, creado_en)
     - Conversión a zona local (America/Bogota) en Python → DB-agnóstico (SQLite/Postgres)
     """
+    permission_classes = [IsAdmin]
 
     FINAL_STATE_ID = 5
 
@@ -931,6 +933,8 @@ class TTATotalView(APIView):
     Para cada transición aprobada, delta = approved_at - (aprobación previa del mismo ticket,
     o creado_en del ticket si no existe previa). El delta se asigna al 'to_state'.
     """
+    permission_classes = [IsAdmin]
+
     def get(self, request, *args, **kwargs):
         try:
             # Subquery: approved_at inmediatamente anterior del mismo ticket
@@ -1006,6 +1010,7 @@ class ActiveClientsMonthlyComparisonView(APIView):
       "diferencia_absoluta": 4
     }
     """
+    permission_classes = [IsAdmin]
 
     def get(self, request, *args, **kwargs):
         try:
