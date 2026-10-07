@@ -15,6 +15,7 @@ CR-01 (permission_classes = [IsAdmin] agregado a las 4 vistas); estos tests
 ahora verifican la ausencia de regresión sobre esa corrección, no un
 hallazgo pendiente.
 """
+import os
 import pytest
 
 pytestmark = pytest.mark.django_db
@@ -136,3 +137,23 @@ class TestSEC04ResilienciaDoSPayloadLogin:
             format="json",
         )
         assert response.status_code in (400, 401)
+
+
+class TestSmokeSinClasesDuplicadas:
+    """Prueba de humo (CR-03): tickets/views.py no debe volver a declarar
+    una clase con nombre duplicado. GAP-03 documentó que TicketHistoryAV
+    estaba definida dos veces (una muerta, una enrutada); esta prueba falla
+    si esa regresión vuelve a introducirse."""
+
+    def test_ticket_history_av_declarada_una_sola_vez(self):
+        views_path = os.path.join(
+            os.path.dirname(__file__), "..", "..", "tickethelp-backend", "tickets", "views.py"
+        )
+        with open(views_path, encoding="utf-8") as f:
+            contenido = f.read()
+
+        ocurrencias = contenido.count("class TicketHistoryAV")
+        assert ocurrencias == 1, (
+            f"tickets/views.py declara 'class TicketHistoryAV' {ocurrencias} veces; "
+            "se esperaba una sola definición (ver GAP-03)."
+        )

@@ -554,57 +554,6 @@ class TicketListView(ListAPIView):
         }, status=status.HTTP_200_OK)
 
 
-# =============================================================================
-# HU13B - Historial: Vista para el historial de cambios de estado del ticket
-# =============================================================================
-# Esta vista permite consultar el historial de un ticket (solo administrador).
-# =============================================================================
-
-class TicketHistoryAV(RetrieveAPIView):
-    """
-    Endpoint para consultar el historial completo de un ticket por su ID.
-    Solo accesible para administradores.
-    """
-    serializer_class = TicketHistorySerializer
-    permission_classes = [IsAdmin]
-    
-    def get_queryset(self):
-        ticket_id = self.kwargs.get('ticket_id')
-        if ticket_id:
-            return TicketHistory.objects.filter(ticket_id=ticket_id).order_by('-fecha')
-        return TicketHistory.objects.none()
-    
-    def get_object(self):
-        ticket_id = self.kwargs.get('ticket_id')
-        
-        # Validar que el ticket existe
-        ticket = get_object_or_404(Ticket, pk=ticket_id)
-        
-        # Retornar el queryset completo (no un objeto individual)
-        return self.get_queryset()
-    
-    def retrieve(self, request, *args, **kwargs):
-        queryset = self.get_object()
-        
-        # Si get_object retornó un Response (error), retornarlo
-        if isinstance(queryset, Response):
-            return queryset
-        
-        serializer = self.get_serializer(queryset, many=True)
-        
-        # Obtener información del ticket
-        ticket_id = self.kwargs.get('ticket_id')
-        ticket = get_object_or_404(Ticket, pk=ticket_id)
-        
-        return Response({
-            'message': 'Historial del ticket obtenido exitosamente',
-            'ticket_id': ticket_id,
-            'ticket_titulo': ticket.titulo,
-            'estado_actual': ticket.estado.nombre if ticket.estado else 'Sin estado',
-            'tecnico_actual': ticket.tecnico.get_full_name() if ticket.tecnico else 'Sin técnico asignado',
-            'total_registros': queryset.count(),
-            'historial': serializer.data
-        }, status=status.HTTP_200_OK)
 class TicketTimelineAV(RetrieveAPIView):
     permission_classes = [IsClient, IsClientOwner]
     serializer_class = TicketTimelineSerializer
