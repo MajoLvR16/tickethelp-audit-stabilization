@@ -128,7 +128,7 @@ tickethelp-frontend/
 3. **Configurar variables de entorno:**
    Crear un archivo `.env` en la raíz del proyecto:
    ```env
-   VITE_BACKEND_URL=https://tickethelp-backend.onrender.com
+   VITE_API_URL=https://tickethelp-backend.onrender.com
    ```
    *Nota: Para desarrollo local, puedes usar `http://localhost:8000` si tienes el backend corriendo localmente.*
 
@@ -188,7 +188,7 @@ El sistema utiliza **JSON Web Tokens (JWT)** para la autenticación:
 
 ### URL Base de la API
 ```javascript
-const API_BASE_URL = import.meta.env.VITE_BACKEND_URL;
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 ```
 
 ### Ejemplo de Petición
@@ -196,7 +196,7 @@ const API_BASE_URL = import.meta.env.VITE_BACKEND_URL;
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_BACKEND_URL,
+  baseURL: import.meta.env.VITE_API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
