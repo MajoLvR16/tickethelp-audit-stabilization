@@ -52,11 +52,11 @@ test("FE-RES-01b: test_regresion_vite_api_url_construye_url_valida", () => {
   assert.doesNotThrow(() => new URL(value));
 });
 
-test("FE-RES-01c: el código fuente sólo consume VITE_API_URL, nunca VITE_BACKEND_URL (variable huérfana)", () => {
+test("FE-RES-01c: el único cliente HTTP vigente (client.js) consume VITE_API_URL, nunca VITE_BACKEND_URL", () => {
+  // Tras CR-05, client.js es el único cliente HTTP del frontend
+  // (clienteApi.js y lib/api.js fueron retirados por consolidación).
   const sourceFiles = [
     "src/api/client.js",
-    "src/api/clienteApi.js",
-    "src/lib/api.js",
   ].map((rel) => fs.readFileSync(path.join(FRONTEND_ROOT, rel), "utf-8"));
 
   for (const source of sourceFiles) {

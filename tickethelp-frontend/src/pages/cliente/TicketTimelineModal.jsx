@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import clienteApi from "../../api/clienteApi";
+import { api } from "../../api/client";
 import { Check, FlaskConical, Home, CircleAlert, Search, Wrench } from "lucide-react";
 
 export default function TicketTimelineModal({ ticketId, onClose }) {
@@ -80,18 +80,18 @@ export default function TicketTimelineModal({ ticketId, onClose }) {
 
         const fetchTimeline = async () => {
             try {
-                const response = await clienteApi.get(`/client/tickets/${ticketId}/timeline/`);
-                const timelineData = response.data.timeline || [];
+                const data = await api(`/api/client/tickets/${ticketId}/timeline/`);
+                const timelineData = data.timeline || [];
                 setTimeline(timelineData);
-                
+
                 // Obtener el estado actual (el más reciente del timeline ordenado)
                 if (timelineData.length > 0) {
                     const sorted = sortTimeline(timelineData);
                     const mostRecentEstado = sorted[0].estado;
                     setCurrentEstado(normalizeEstado(mostRecentEstado));
-                } else if (response.data.estado_actual) {
+                } else if (data.estado_actual) {
                     // Si no hay timeline pero hay estado_actual en la respuesta
-                    setCurrentEstado(normalizeEstado(response.data.estado_actual));
+                    setCurrentEstado(normalizeEstado(data.estado_actual));
                 } else {
                     setCurrentEstado(null);
                 }

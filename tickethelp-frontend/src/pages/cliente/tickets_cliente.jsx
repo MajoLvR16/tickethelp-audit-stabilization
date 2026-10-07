@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
-import clienteApi from "../../api/clienteApi";
 import TicketTimelineModal from "./TicketTimelineModal";
 import { AttachmentsGalleryModal } from "../../components/tickets/visualizar_tickets/AttachmentsGalleryModal";
 import { api } from "../../api/client";
@@ -57,15 +56,15 @@ export default function TicketsCliente() {
     if (!ticketToCancel) return;
     setIsCanceling(true);
     try {
-      await clienteApi.put(`/tickets/cancel/${ticketToCancel.id}/?user_document=${user.document}`);
+      await api(`/api/tickets/cancel/${ticketToCancel.id}/?user_document=${user.document}`, { method: "PUT" });
       setNotif({ open: true, title: "Éxito", message: "El ticket ha sido cancelado definitivamente." });
       setCancelModalOpen(false);
       // Refresh tickets
-      const response = await clienteApi.get(`/tickets/consulta/?user_document=${user.document}`);
-      setTickets(response.data.tickets || []);
+      const data = await api(`/api/tickets/consulta/?user_document=${user.document}`);
+      setTickets(data.tickets || []);
     } catch (error) {
       console.error(error);
-      const msg = error.response?.data?.message || "No se pudo cancelar el ticket.";
+      const msg = error.data?.message || "No se pudo cancelar el ticket.";
       setNotif({ open: true, title: "Error", message: msg });
       setCancelModalOpen(false);
     } finally {
@@ -117,12 +116,12 @@ export default function TicketsCliente() {
       try {
         console.log("Usuario en tickets_cliente:", user);
 
-        const response = await clienteApi.get(
-          `/tickets/consulta/?user_document=${user.document}`
+        const data = await api(
+          `/api/tickets/consulta/?user_document=${user.document}`
         );
 
-        console.log("✔ Tickets:", response.data);
-        setTickets(response.data.tickets || []);
+        console.log("✔ Tickets:", data);
+        setTickets(data.tickets || []);
       } catch (error) {
         console.error("❌ Error al traer los tickets del cliente:", error);
       } finally {
