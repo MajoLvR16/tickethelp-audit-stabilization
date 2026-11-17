@@ -28,7 +28,7 @@ tickethelp-workspace/
 | Pruebas automatizadas | No existía un arnés desacoplado ejecutable de forma determinista | 23 pruebas backend (pytest) + 9 pruebas frontend (`node:test`) |
 | Resultado de pruebas backend | N/A | 23/23 ejecutadas según diseño (incluye casos que documentan intencionalmente no conformidades reales, ver `docs/GAP_ANALYSIS_INFORME.md`) |
 | Resultado de pruebas frontend | N/A | 7/9 aprobadas; 2/9 reproducen de forma determinista la no conformidad de configuración de `.env` |
-| Cobertura de línea (tickets/users/reports) | N/A | **36 %** (1319/2046 líneas no cubiertas) |
+| Cobertura de línea (tickets/users/reports) | N/A | **34 %** (913 de 2698 sentencias cubiertas sobre `tickets`, `users` y `reports`; la medición anterior no incluía la app `reports`) |
 | Documentación formal | Documentos base de requerimientos e historias de usuario | + Gap Analysis, Plan de Pruebas ISO/IEC/IEEE 29119 y Auditoría de Configuración (SCI) |
 | Etiqueta Git | `v1.0-baseline-heredada` | `v3.0-baseline-certificada` |
 

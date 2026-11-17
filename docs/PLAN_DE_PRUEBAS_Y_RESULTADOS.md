@@ -92,7 +92,7 @@ Verificar, mediante evidencia ejecutable y reproducible, el comportamiento de lo
 | Precondición | Lectura directa de `tickethelp-frontend/.env`. |
 | Entrada | Valor real `VITE_BACKEND_URL=https:tickethelp-backend.onrender.com`. |
 | Aserción | El valor debe cumplir `^https?:\/\/` y ser aceptado por `new URL(...)`. |
-| Comportamiento verificado | **NO CONFORME (confirma GAP-02).** El valor actual carece de `//` y `new URL(...)` lanza `TypeError`, reproduciendo el defecto de configuración de forma determinista. Subcaso adicional (`FE-RES-01c`) confirma que, además, ningún cliente HTTP del frontend consume esta variable (lee `VITE_API_URL` en su lugar), por lo que el defecto es actualmente inerte en tiempo de ejecución pero bloqueante si se corrige sólo el nombre sin corregir el valor. |
+| Comportamiento verificado | **NO CONFORME (confirma GAP-02).** El valor actual carece de `//`; `new URL(...)` no lo rechaza (lo normaliza a `https://tickethelp-backend.onrender.com/`), por lo que el formato lo detecta la prueba `FE-RES-01` mediante la expresión regular `/^https?:\/\//`, que falla de forma determinista sobre ese valor y reproduce el defecto de configuración. Subcaso adicional (`FE-RES-01c`) confirma que, además, ningún cliente HTTP del frontend consume esta variable (lee `VITE_API_URL` en su lugar), por lo que el defecto es actualmente inerte en tiempo de ejecución pero bloqueante si se corrige sólo el nombre sin corregir el valor. |
 
 ### FE-RES-02 — Extracción de mensaje estructurado ante 401/403
 
@@ -133,4 +133,4 @@ cd _qa_test_suite
 node --test frontend_tests/test_client_resilience.mjs
 ```
 
-Cobertura de línea medida sobre `tickets/`, `users/` y `reports/` (aplicaciones bajo prueba, excluidas migraciones y suites preexistentes no ejecutadas por este arnés): **36 % (1319/2046 líneas no cubiertas)**, reportada en `_qa_test_suite/reports/coverage_html/index.html`. Se documenta como línea base del banco de pruebas incorporado por esta auditoría; no sustituye una meta de cobertura institucional, la cual debería definirse en el SRS ausente (ver sección 1 del Gap Analysis).
+Cobertura de línea medida sobre `tickets/`, `users/` y `reports/` (aplicaciones bajo prueba; el cómputo incluye sus migraciones y los módulos de prueba preexistentes, que este arnés no ejecuta y figuran con 0 %): **34 % (913 de 2698 sentencias cubiertas)**, medida sobre `c657e1e` y reportada en `_qa_test_suite/reports/coverage_html/index.html`. Se documenta como línea base del banco de pruebas incorporado por esta auditoría; no sustituye una meta de cobertura institucional, la cual debería definirse en el SRS ausente (ver sección 1 del Gap Analysis). La medición publicada anteriormente (727 de 2046 sentencias) no incluía la app `reports`: la carpeta `_qa_test_suite/reports/`, donde se guardaba el informe HTML, ocultaba ese nombre en la opción `--cov=reports`.
