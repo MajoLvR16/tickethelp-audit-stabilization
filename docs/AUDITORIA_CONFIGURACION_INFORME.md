@@ -1,6 +1,6 @@
 # Auditoría de Gestión de la Configuración del Software (Sección 7)
 **Proyecto:** TicketHelp | **Estudiante:** María José López Reyes (1152268)
-**Referencia complementaria:** `_audit_docs/Auditoria Gestión de la Configuración- v2.md` (documento previo de la asignatura)
+**Referencia complementaria:** documento previo de la asignatura
 **Alcance:** Elementos de Configuración del Software (SCI) de `tickethelp-backend/` y `tickethelp-frontend/`, inspeccionados en modo lectura.
 
 ## 1. Propósito
