@@ -1,38 +1,25 @@
-# Guía de Despliegue en Coolify
+# Despliegue del backend
 
-Este documento explica cómo configurar Coolify para desplegar correctamente el backend de **TicketHelp** usando Dockerfile.
+El procedimiento de despliegue está documentado en el **Manual de Despliegue** (documento Word, aparte de este repositorio). Este archivo solo resume lo verificable en el código.
 
-## Configuración del Servicio en Coolify
+## Imagen Docker (`Dockerfile`)
 
-Cuando crees el recurso en Coolify, configúralo con los siguientes valores:
+- Base: `python:3.12-slim`.
+- Instala `requirements.txt` y expone el puerto 8000.
+- Comando de arranque: `python manage.py migrate && python manage.py collectstatic --noinput && gunicorn tickethelp.wsgi:application --bind 0.0.0.0:8000`.
 
-- **Build Pack**: `Dockerfile`
-- **Base Directory**: `/`
-- **Dockerfile Location**: `/Dockerfile`
-- **Ports Exposes**: `8000`
-- **Install Command**: *(Vacío)*
-- **Build Command**: *(Vacío)*
-- **Start Command**: *(Vacío)*
+## Variables de entorno leídas en `tickethelp/settings.py`
 
-> [!NOTE]
-> No necesitas configurar un start command porque el comando de inicio, las migraciones de base de datos y la recolección de archivos estáticos son manejados automáticamente por las instrucciones del `Dockerfile`.
+| Grupo | Variables |
+|---|---|
+| Núcleo | `SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, `CORS_ALLOWED_ORIGINS` |
+| Base de datos | `DATABASE_URL` |
+| Almacenamiento S3 | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_STORAGE_BUCKET_NAME`, `AWS_S3_ENDPOINT_URL` |
+| Correo | `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USE_TLS`, `EMAIL_USE_SSL`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `DEFAULT_FROM_EMAIL`, `EMAIL_TIMEOUT` |
+| Notificaciones | `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL`, `NOTIFICATIONS_EMAIL_ENABLED` |
 
-## Variables de Entorno en Coolify
+`.env.example` contiene una plantilla mínima.
 
-Configura las siguientes variables de entorno en la sección **Environment Variables** de Coolify:
+## Frontend
 
-```env
-SECRET_KEY=clave_segura_generada
-DEBUG=False
-ALLOWED_HOSTS=rjhuiksgeeoo6z1is7adxnyp.5.78.212.12.sslip.io,localhost,127.0.0.1
-CORS_ALLOWED_ORIGINS=http://nnuraz9tktih4odeu6r09ysn.5.78.212.12.sslip.io
-CSRF_TRUSTED_ORIGINS=http://nnuraz9tktih4odeu6r09ysn.5.78.212.12.sslip.io,http://rjhuiksgeeoo6z1is7adxnyp.5.78.212.12.sslip.io
-```
-
-### Base de Datos PostgreSQL (Opcional)
-
-Si utilizas PostgreSQL para producción, añade la siguiente variable:
-
-```env
-DATABASE_URL=postgresql://usuario:password@host:puerto/base_de_datos
-```
+El frontend lee la URL del backend en `VITE_API_URL` (`tickethelp-frontend/src/api/client.js`). Debe incluir el esquema completo, por ejemplo `https://api.midominio.com`.
