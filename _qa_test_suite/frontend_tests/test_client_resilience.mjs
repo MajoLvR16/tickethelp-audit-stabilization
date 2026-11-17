@@ -46,8 +46,8 @@ test("FE-RES-01: test_regresion_vite_api_url_presente_y_valida", () => {
 });
 
 test("FE-RES-01b: test_regresion_vite_api_url_construye_url_valida", () => {
-  // Verifica ausencia de regresión de CR-02: el valor real configurado ya
-  // no lanza TypeError al construir new URL(valor).
+  // Verifica ausencia de regresión de CR-02: el valor real configurado incluye
+  // el esquema https:// y construye una URL válida.
   const value = readEnvVar("VITE_API_URL");
   assert.doesNotThrow(() => new URL(value));
 });
