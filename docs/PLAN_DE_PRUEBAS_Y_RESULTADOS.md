@@ -117,7 +117,7 @@ Verificar, mediante evidencia ejecutable y reproducible, el comportamiento de lo
 | Suite | Casos | Aprobados | No conformes (defecto confirmado) | Comando de ejecución |
 |---|---|---|---|---|
 | Backend (`pytest`) | 23 (agrupados en CB-01..03, SEC-01..04) | 23/23 assertions programadas se ejecutan según diseño (SEC-01 documenta intencionalmente el estado NO CONFORME de GAP-04 como resultado esperado de la prueba, no como fallo de ejecución) | — | Ver sección 6 |
-| Frontend (`node:test`) | 9 (FE-RES-01, 01b, 01c, 02, 02b, 02c, 03a, 03b, 03c) | 7/9 | 2/9 (FE-RES-01, FE-RES-01b — reproducen GAP-02 de forma determinista) | Ver sección 6 |
+| Frontend (`node:test`) | 9 (FE-RES-01, 01b, 01c, 02, 02b, 02c, 03a, 03b, 03c) | 7/9 | 2/9 en la línea base (FE-RES-01, FE-RES-01b reproducían GAP-02 de forma determinista); 9/9 tras CR-02 | Ver sección 6 |
 
 ## 6. Comandos de ejecución determinista
 
@@ -133,4 +133,4 @@ cd _qa_test_suite
 node --test frontend_tests/test_client_resilience.mjs
 ```
 
-Cobertura de línea medida sobre `tickets/`, `users/` y `reports/` (aplicaciones bajo prueba; el cómputo incluye sus migraciones y los módulos de prueba preexistentes, que este arnés no ejecuta y figuran con 0 %): **34 % (913 de 2698 sentencias cubiertas)**, medida sobre `c657e1e` y reportada en `_qa_test_suite/reports/coverage_html/index.html`. Se documenta como línea base del banco de pruebas incorporado por esta auditoría; no sustituye una meta de cobertura institucional, la cual debería definirse en el SRS ausente (ver sección 1 del Gap Analysis). La medición publicada anteriormente (727 de 2046 sentencias) no incluía la app `reports`: la carpeta `_qa_test_suite/reports/`, donde se guardaba el informe HTML, ocultaba ese nombre en la opción `--cov=reports`.
+Cobertura de línea medida sobre `tickets/`, `users/` y `reports/` (aplicaciones bajo prueba; el cómputo incluye sus migraciones y los módulos de prueba preexistentes, que este arnés no ejecuta y figuran con 0 %): **34 % (913 de 2698 sentencias cubiertas)**, medida sobre `c657e1e` y reportada en `_qa_test_suite/reports/coverage_html/index.html`. Se documenta como línea base del banco de pruebas incorporado por esta auditoría; no sustituye una meta de cobertura institucional, la cual debería definirse en el documento de requerimientos del proyecto (ver sección 1 del Gap Analysis). La medición publicada anteriormente (727 de 2046 sentencias) no incluía la app `reports`: la carpeta `_qa_test_suite/reports/`, donde se guardaba el informe HTML, ocultaba ese nombre en la opción `--cov=reports`.
